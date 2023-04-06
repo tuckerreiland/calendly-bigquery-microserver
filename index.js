@@ -48,12 +48,17 @@ let calendlyFetchOptions = {
 	headers: {'Content-Type': 'application/json', 
 	Authorization: `${BearerToken}`}
 };
-const url = `https://api.calendly.com/event_types/BDFPR46JKT67V5RT?organization=${organizationUri}`
 
-fetch(url, calendlyFetchOptions)
-	.then(res => res.json())
-	.then(json => console.log(json))
-	.catch(err => console.error('error:' + err));
+// const url = `https://api.calendly.com/users/f1f4c025-bdac-40eb-9b62-b05345b8265b?organization-${organizationUri}`
+// // `https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742/invitees?organization=${organizationUri}`
+// // `https://api.calendly.com/scheduled_events?sort=start_time:desc&organization=${organizationUri}`
+// // `https://api.calendly.com/users/f1f4c025-bdac-40eb-9b62-b05345b8265b?organization-${organizationUri}`
+// // `https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742?organization=${organizationUri}`
+
+// fetch(url, calendlyFetchOptions)
+// 	.then(res => res.json())
+// 	.then(json => console.log(json))
+// 	.catch(err => console.error('error:' + err));
 
 const fetchEventData = (data) => {
 	return fetch(data.payload.uri, calendlyFetchOptions)
@@ -64,19 +69,32 @@ const fetchEventData = (data) => {
 			return fetch(uri.resource.event, calendlyFetchOptions)
 			.then(res => {return res.json()})
 			.then( event => {
-				console.log('============URI===============')
-				console.log(uri)
-				console.log('============EVENT===============')
-				console.log(event)
-				const webhookData = data.payload
-				const fullName = webhookData.name.split(' ')
-				webhookData.first_name = fullName[0]
-				webhookData.last_name = fullName[1]
-				webhookData.event = event.resource
-				webhookData.questions_and_answers = uri.resource.questions_and_answers
-				console.log('============FINAL===============')
-				console.log(webhookData)
-				return webhookData	
+				// console.log('============EVENT===============')
+				// console.log(event)
+				return fetch(event.resource.event_memberships[0].user, calendlyFetchOptions)
+				.then(res => {return res.json()})
+				.then( user => {
+					// console.log('============USER===============')
+					// console.log(user)
+					return fetch(event.resource.event_type, calendlyFetchOptions)
+					.then(res => {return res.json()})
+					.then( eventType => {
+						// console.log('============Event Type===============')
+						// console.log(eventType)
+						const webhookData = data.payload
+						const fullName = webhookData.name.split(' ')
+						webhookData.first_name = fullName[0]
+						webhookData.last_name = fullName[1]
+						webhookData.event = event.resource
+						webhookData.salesperson_name = user.resource.name
+						webhookData.salesperson_email = user.resource.email
+						webhookData.event.event_type = eventType.resource
+						webhookData.questions_and_answers = uri.resource.questions_and_answers
+						console.log('============FINAL===============')
+						console.log(webhookData)
+						return webhookData	
+					})
+				})
 			})
 		})
 	.catch(err => console.log('error:' + err));
@@ -95,16 +113,24 @@ class FormattedData {
 		this.first_name = data.first_name;
 		this.last_name = data.last_name;
 		this.email = data.email;
-		this.phone = data.text_reminder_number;
+		this.phone = data.questions_and_answers[0].answer;
 		this.questions_and_answers = data.questions_and_answers
+		// this.question_one = data.questions_and_answers[1].question
+		// this.answer_one = data.questions_and_answers[1].answer
+		// this.question_two = data.questions_and_answers[2].question
+		// this.answer_two = data.questions_and_answers[2].answer
+		// this.question_three = data.questions_and_answers[3].question
+		// this.answer_three = data.questions_and_answers[3].answer
+		// this.question_four = data.questions_and_answers[4].question
+		// this.answer_four = data.questions_and_answers[4].answer
 		this.utm_campaign = data.tracking.utm_campaign;
 		this.utm_source = data.tracking.utm_source;
 		this.utm_medium = data.tracking.utm_medium;
 		this.utm_term = data.tracking.utm_term;
 		this.utm_content = data.tracking.utm_content;
-		this.notifications_phone = data.text_reminder_number;
-		// this.employee = data.event.profile.name;
-			// TODO: Need to figure out API call for employee name and appointment location
+		this.text_reminder_number = data.text_reminder_number;
+		this.salesperson_email = data.salesperson_email
+		this.salesperson_name = data.salesperson_name
 	}
 }
 
