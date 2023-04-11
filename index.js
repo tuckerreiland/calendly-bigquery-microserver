@@ -17,15 +17,16 @@ app.use(express.json());
 //webhook sandbox
 app.post('/webhook', async (req, res) => {
 	const data = req.body
-	//I can figure this out by creating an appointment for the three guys consulting account and scheduling things there. then I'll just deploy the webhook and see what happens
-	//I'll start buy making some educated guesses as to the way the API works and build the big query query and update code based on this fake appointment I have, then I'll go from there
-	// TODO: 
-		// if (data.event == 'invitee.canceled'){
-	// 	console.log(data)
-	// 	//eventCanceled(data)
-	// }
+		if (data.event == 'invitee.canceled'){
+		console.log(data)
+		//TODO:
+		//eventCanceled(data)
+		}
 		if (data.event == 'invitee.created' && data.payload.old_invitee){
+			//TODO:
 			//Reschedule code
+			//Search Bigquery with data.payload.old_invitee
+			//eventReschedule(data)
 		}
 		if (data.event == 'invitee.created' && !data.payload.old_invitee){
 			fetchNewEventData(data)
@@ -36,16 +37,16 @@ app.post('/webhook', async (req, res) => {
 				res.send(formattedCalendlyData)
 				return formattedCalendlyData
 			})
-			// .then(dataForBiqQuery => {
-			// 	main(dataForBiqQuery)
-			// 	console.log(dataForBiqQuery)
-			// })
+			.then(dataForBiqQuery => {
+				main(dataForBiqQuery)
+				console.log(dataForBiqQuery)
+			})
 		}	
 })
 
-app.listen(PORT, () => {
-	console.log(`listening on ${PORT}`)
-})
+// app.listen(PORT, () => {
+// 	console.log(`listening on ${PORT}`)
+// })
 
 // Calendly Fetch
 // =============================================================
@@ -64,17 +65,10 @@ let calendlyFetchOptions = {
 // 	headers: {'Content-Type': 'application/json', 
 // 		Authorization: `${BearerToken}`
 // 	},
-// 	body:'{"url":"https://us-central1-vital-range-377419.cloudfunctions.net/calendlyBigQueryETLServer/webhook","events":["invitee.created","invitee.canceled"],"organization":"https://api.calendly.com/organizations/CEBBNBYN7S5RBBCM","user":"https://api.calendly.com/users/48e74773-5fa0-42f7-9107-59fa8b3e952f","scope": "user"}',
+// 	body:'{"url":"https://us-central1-vital-range-377419.cloudfunctions.net/calendlyBigQueryETLServer/webhook","events":["invitee.created","invitee.canceled"],"organization":"https://api.calendly.com/organizations/CEBBNBYN7S5RBBCM","user":"https://api.calendly.com/users/48e74773-5fa0-42f7-9107-59fa8b3e952f","scope": "organization"}',
 // };
 
-const url = 'https://api.calendly.com/scheduled_events/fee5146a-73cc-4bc3-befc-e1e35c8d5abf/invitees/0fbd6bfd-f53a-42cb-884c-91e2b3693433'
-//'https://api.calendly.com/webhook_subscriptions/422774ac-06a2-483f-8352-45e1338aff96'
-//`https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}&scope=organization`
-//`https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742/invitees/414ec0c3-62c8-4831-bce6-f88a83478970?organization-${organizationUri}`
-// // `https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742/invitees?organization=${organizationUri}`
-// // `https://api.calendly.com/scheduled_events?sort=start_time:desc&organization=${organizationUri}`
-// // `https://api.calendly.com/users/f1f4c025-bdac-40eb-9b62-b05345b8265b?organization-${organizationUri}`
-// // `https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742?organization=${organizationUri}`
+// const url = `https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}&scope=organization`
 
 // fetch(url, calendlyFetchOptions)
 // 	.then(res => res.json())
@@ -82,8 +76,8 @@ const url = 'https://api.calendly.com/scheduled_events/fee5146a-73cc-4bc3-befc-e
 // 	.catch(err => console.error('error:' + err));
 
 const fetchNewEventData = (data) => {
-	console.log('============WEBHOOK DATA===============')
-	console.log(data)
+	// console.log('============WEBHOOK DATA===============')
+	// console.log(data)
 		return fetch(data.payload.event, calendlyFetchOptions)
 		.then(res => {return res.json()})
 		.then( event => {
@@ -140,8 +134,8 @@ const fetchNewEventData = (data) => {
 						webhookData.question_4 = ''
 						webhookData.answer_4 = ''
 					}
-					// console.log('============FINAL===============')
-					// console.log(webhookData)
+					console.log('============FINAL===============')
+					console.log(webhookData)
 					return webhookData	
 				})
 			})
@@ -149,7 +143,7 @@ const fetchNewEventData = (data) => {
 	.catch(err => console.log('error:' + err));
 };
 
-//TODO
+//TODO:
 const eventRescheduled = () => {
 		// find the record that matches
 			// But how do I match them? What is the permanent record/identifier for each calendly appointment?
@@ -192,7 +186,7 @@ class FormattedData {
 		this.salesperson_name = data.salesperson_name
 		this.canceled = data.canceled
 		this.rescheduled = data.rescheduled
-		this.eventUri = data.eventUri
+		this.event_uri = data.uri
 	}
 }
 
@@ -203,8 +197,8 @@ function main(dataForBiqQuery) {
     // Import the Google Cloud client libraries
     const {BigQuery} = require('@google-cloud/bigquery');
 
-    const datasetId = "calendly_bigquery_test_dataset";
-    const tableId = "calendly_bigquery_test_table";
+    const datasetId = "calendly";
+    const tableId = "calendly_appointments";
 	const insertData = dataForBiqQuery
 
     async function loadCalendlyEventData(datasetId, tableId, insertData) {
@@ -238,7 +232,6 @@ function main(dataForBiqQuery) {
 				answer_three: insertData.answer_three,
 				question_four: insertData.question_four,
 				answer_four: insertData.answer_four,
-				// questions_and_answers: insertData.questions_and_answers,
 				utm_campaign: insertData.utm_campaign,
 				utm_source: insertData.utm_source,
 				utm_medium: insertData.utm_medium,
@@ -249,6 +242,7 @@ function main(dataForBiqQuery) {
 				salesperson_name: insertData.salesperson_name,
 				canceled: insertData.canceled,
 				rescheduled: insertData.rescheduled,
+				event_uri: insertData.event_uri
 			}
 		]
 
@@ -271,4 +265,4 @@ function main(dataForBiqQuery) {
     loadCalendlyEventData(datasetId, tableId, insertData);
 }
 
-// exports.calendlyBigQueryETLServer = app;
+exports.calendlyBigQueryETLServer = app;

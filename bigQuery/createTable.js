@@ -124,6 +124,10 @@ function main() {
 						name: 'rescheduled', 
 						type: 'BOOLEAN'
 					},
+					{
+						name: 'event_uri', 
+						type: 'STRING'
+					},
 				],
 			},
             };
