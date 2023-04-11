@@ -3,8 +3,8 @@
 function main() {
     // Import the Google Cloud client libraries
     const {BigQuery} = require('@google-cloud/bigquery');
-	const datasetId = "calendly_bigquery_test_dataset";
-    const tableId = "calendly_bigquery_test_table";
+	const datasetId = "calendly";
+    const tableId = "calendly_appointments";
 
 	async function createTable(datasetId, tableId) {
         // Creates a new table

@@ -10,6 +10,6 @@
 	  "node-fetch": "^2.6.1"
 	},
 	"scripts": {
-	  "webhook": "npx functions-framework --target=webhook"
+	  "calendlyBigQueryETLServer": "npx functions-framework --target=calendlyBigQueryETLServer"
 	}
   }

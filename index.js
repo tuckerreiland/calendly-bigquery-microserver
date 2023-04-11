@@ -18,32 +18,29 @@ app.use(express.json());
 app.post('/webhook', async (req, res) => {
 	const data = req.body
 	//I can figure this out by creating an appointment for the three guys consulting account and scheduling things there. then I'll just deploy the webhook and see what happens
-	//I'll start buy making some educated guesses as to the way the API works and build the big query query and update code based on this fake appointment I have, then I'll go from there.
+	//I'll start buy making some educated guesses as to the way the API works and build the big query query and update code based on this fake appointment I have, then I'll go from there
 	// TODO: 
-	if (data.event == invitee.created && rescheduled === true) {
-		console.log(data)
-		//eventRescheduled(data)
-	}
-		
-	// TODO: 
-	if (data.event == invitee.canceled && canceled === true){
-		console.log(data)
-		//eventCanceled(data)
-	}
-	if (data.event == invitee.created &&  rescheduled === false){
-		fetchEventData(data)
-		.then(calendlyEvent => {
-			formattedCalendlyData = new FormattedData (calendlyEvent)
-			// console.log('============FORMATTED CALENDLY DATA===============')
-			// console.log(formattedCalendlyData)
-			res.send(formattedCalendlyData)
-			return formattedCalendlyData
-		})
-		.then(dataForBiqQuery => {
-			main(dataForBiqQuery)
-			console.log(dataForBiqQuery)
-		})
-}	
+		// if (data.event == 'invitee.canceled'){
+	// 	console.log(data)
+	// 	//eventCanceled(data)
+	// }
+		if (data.event == 'invitee.created' && data.payload.old_invitee){
+			//Reschedule code
+		}
+		if (data.event == 'invitee.created' && !data.payload.old_invitee){
+			fetchNewEventData(data)
+			.then(calendlyEvent => {
+				formattedCalendlyData = new FormattedData (calendlyEvent)
+				// console.log('============FORMATTED CALENDLY DATA===============')
+				// console.log(formattedCalendlyData)
+				res.send(formattedCalendlyData)
+				return formattedCalendlyData
+			})
+			// .then(dataForBiqQuery => {
+			// 	main(dataForBiqQuery)
+			// 	console.log(dataForBiqQuery)
+			// })
+		}	
 })
 
 app.listen(PORT, () => {
@@ -62,7 +59,18 @@ let calendlyFetchOptions = {
 	Authorization: `${BearerToken}`}
 };
 
-// const url = `https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742/invitees/414ec0c3-62c8-4831-bce6-f88a83478970?organization-${organizationUri}`
+// let calendlyFetchOptions = {
+// 	method: 'POST',
+// 	headers: {'Content-Type': 'application/json', 
+// 		Authorization: `${BearerToken}`
+// 	},
+// 	body:'{"url":"https://us-central1-vital-range-377419.cloudfunctions.net/calendlyBigQueryETLServer/webhook","events":["invitee.created","invitee.canceled"],"organization":"https://api.calendly.com/organizations/CEBBNBYN7S5RBBCM","user":"https://api.calendly.com/users/48e74773-5fa0-42f7-9107-59fa8b3e952f","scope": "user"}',
+// };
+
+const url = 'https://api.calendly.com/scheduled_events/fee5146a-73cc-4bc3-befc-e1e35c8d5abf/invitees/0fbd6bfd-f53a-42cb-884c-91e2b3693433'
+//'https://api.calendly.com/webhook_subscriptions/422774ac-06a2-483f-8352-45e1338aff96'
+//`https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}&scope=organization`
+//`https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742/invitees/414ec0c3-62c8-4831-bce6-f88a83478970?organization-${organizationUri}`
 // // `https://api.calendly.com/scheduled_events/578c21eb-8cd4-4cee-85e8-77f65a826742/invitees?organization=${organizationUri}`
 // // `https://api.calendly.com/scheduled_events?sort=start_time:desc&organization=${organizationUri}`
 // // `https://api.calendly.com/users/f1f4c025-bdac-40eb-9b62-b05345b8265b?organization-${organizationUri}`
@@ -70,10 +78,12 @@ let calendlyFetchOptions = {
 
 // fetch(url, calendlyFetchOptions)
 // 	.then(res => res.json())
-// 	.then(json => console.log(json.resource.questions_and_answers))
+// 	.then(json => console.log(json))
 // 	.catch(err => console.error('error:' + err));
 
-const fetchEventData = (data) => {
+const fetchNewEventData = (data) => {
+	console.log('============WEBHOOK DATA===============')
+	console.log(data)
 		return fetch(data.payload.event, calendlyFetchOptions)
 		.then(res => {return res.json()})
 		.then( event => {
@@ -182,6 +192,7 @@ class FormattedData {
 		this.salesperson_name = data.salesperson_name
 		this.canceled = data.canceled
 		this.rescheduled = data.rescheduled
+		this.eventUri = data.eventUri
 	}
 }
 
@@ -260,3 +271,4 @@ function main(dataForBiqQuery) {
     loadCalendlyEventData(datasetId, tableId, insertData);
 }
 
+// exports.calendlyBigQueryETLServer = app;
