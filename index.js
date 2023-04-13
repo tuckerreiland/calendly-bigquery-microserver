@@ -17,23 +17,23 @@ app.use(express.json());
 //webhook sandbox
 app.post('/webhook', async (req, res) => {
 	const data = req.body
+	console.log('============WEBHOOK DATA===============')
+	console.log(data)
 		if (data.event == 'invitee.canceled'){
-		console.log(data)
-		//TODO:
-		//eventCanceled(data)
+			eventCanceled(data)
+			.then( canceledEvent => {
+				console.log('============EVENT CANCELED===============')
+				result = canceledEvent[0]
+				console.log(result[0])
+				res.send(canceledEvent)
+			})
 		}
-		if (data.event == 'invitee.created' && data.payload.old_invitee){
-			//TODO:
-			//Reschedule code
-			//Search Bigquery with data.payload.old_invitee
-			//eventReschedule(data)
-		}
-		if (data.event == 'invitee.created' && !data.payload.old_invitee){
+		if (data.event == 'invitee.created'){
 			fetchNewEventData(data)
 			.then(calendlyEvent => {
 				formattedCalendlyData = new FormattedData (calendlyEvent)
-				// console.log('============FORMATTED CALENDLY DATA===============')
-				// console.log(formattedCalendlyData)
+				console.log('============EVENT CREATED===============')
+				console.log(formattedCalendlyData)
 				res.send(formattedCalendlyData)
 				return formattedCalendlyData
 			})
@@ -52,6 +52,7 @@ app.post('/webhook', async (req, res) => {
 // =============================================================
 const BearerToken = process.env.CALENDLY_BEARER_TOKEN
 const organizationUri = 'https://api.calendly.com/organizations/CEBBNBYN7S5RBBCM'
+const myUri = 'https://api.calendly.com/users/48e74773-5fa0-42f7-9107-59fa8b3e952f'
 
 
 let calendlyFetchOptions = {
@@ -69,6 +70,8 @@ let calendlyFetchOptions = {
 // };
 
 // const url = `https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}&scope=organization`
+// //`https://api.calendly.com/webhook_subscriptions/422774ac-06a2-483f-8352-45e1338aff96?organization=${organizationUri}`
+// //`https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}`
 
 // fetch(url, calendlyFetchOptions)
 // 	.then(res => res.json())
@@ -76,8 +79,6 @@ let calendlyFetchOptions = {
 // 	.catch(err => console.error('error:' + err));
 
 const fetchNewEventData = (data) => {
-	// console.log('============WEBHOOK DATA===============')
-	// console.log(data)
 		return fetch(data.payload.event, calendlyFetchOptions)
 		.then(res => {return res.json()})
 		.then( event => {
@@ -98,6 +99,10 @@ const fetchNewEventData = (data) => {
 					webhookData.first_name = fullName[0]
 					webhookData.last_name = fullName[1]
 					webhookData.event = event.resource
+					webhookData.cancellation = {
+						canceled_by: '',
+						reason: '',
+					}
 					webhookData.salesperson_name = user.resource.name
 					webhookData.salesperson_email = user.resource.email
 					webhookData.event.event_type = eventType.resource
@@ -134,25 +139,14 @@ const fetchNewEventData = (data) => {
 						webhookData.question_4 = ''
 						webhookData.answer_4 = ''
 					}
-					console.log('============FINAL===============')
-					console.log(webhookData)
+					// console.log('============FINAL===============')
+					// console.log(webhookData)
 					return webhookData	
 				})
 			})
 		})
 	.catch(err => console.log('error:' + err));
 };
-
-//TODO:
-const eventRescheduled = () => {
-		// find the record that matches
-			// But how do I match them? What is the permanent record/identifier for each calendly appointment?
-}
-
-const eventCanceled = () => {
-	// find the record that matches
-	// But how do I match them? What is the permanent record/identifier for each calendly appointment?
-}
 
 // Formatted Data Constructor
 // =============================================================
@@ -187,6 +181,9 @@ class FormattedData {
 		this.canceled = data.canceled
 		this.rescheduled = data.rescheduled
 		this.event_uri = data.uri
+		this.old_event_uri = data.old_invitee
+		this.canceled_by = data.cancellation.canceled_by
+		this.cancellation_reason = data.cancellation.reason
 	}
 }
 
@@ -242,7 +239,10 @@ function main(dataForBiqQuery) {
 				salesperson_name: insertData.salesperson_name,
 				canceled: insertData.canceled,
 				rescheduled: insertData.rescheduled,
-				event_uri: insertData.event_uri
+				event_uri: insertData.event_uri,
+				old_event_uri: insertData.old_event_uri,
+				canceled_by: insertData.canceled_by,
+				cancellation_reason: insertData.cancellation_reason
 			}
 		]
 
@@ -265,4 +265,29 @@ function main(dataForBiqQuery) {
     loadCalendlyEventData(datasetId, tableId, insertData);
 }
 
+const eventCanceled = (dataForBiqQuery) => {
+	const {BigQuery} = require('@google-cloud/bigquery');
+
+    const datasetId = "calendly";
+    const tableId = "calendly_appointments";
+	const canceledAppointmentData = dataForBiqQuery
+
+	async function updateCanceledEvent(datasetId, tableId, canceledAppointmentData) {
+
+		const bigqueryClient = new BigQuery();
+
+		const query = `UPDATE \`${datasetId}.${tableId}\` SET canceled = true, rescheduled = ${canceledAppointmentData.payload.rescheduled}, canceled_by = '${canceledAppointmentData.payload.cancellation.canceled_by}', cancellation_reason = '${canceledAppointmentData.payload.cancellation.reason}' WHERE event_uri = '${canceledAppointmentData.payload.uri}'`;
+
+        // Configure the load job.
+        const options = {
+			query: query,
+			sourceFormat: 'NEWLINE_DELIMITED_JSON',
+			location: 'US',
+        };
+
+		const result = await bigqueryClient.query(options);
+		return result
+	}
+	return updateCanceledEvent(datasetId, tableId, canceledAppointmentData)
+}
 exports.calendlyBigQueryETLServer = app;

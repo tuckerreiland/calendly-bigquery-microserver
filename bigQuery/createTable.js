@@ -128,6 +128,18 @@ function main() {
 						name: 'event_uri', 
 						type: 'STRING'
 					},
+					{
+						name: 'old_event_uri', 
+						type: 'STRING'
+					},
+					{
+						name: 'canceled_by', 
+						type: 'STRING'
+					},
+					{
+						name: 'cancellation_reason', 
+						type: 'STRING'
+					},
 				],
 			},
             };
