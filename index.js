@@ -9,7 +9,6 @@ const {BigQuery} = require('@google-cloud/bigquery')
 // =============================================================
 const app = express();
 app.use(cors())
-const PORT = process.env.PORT || 3003;
 
 // app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -23,8 +22,6 @@ app.post('/webhook', async (req, res) => {
 			eventCanceled(data)
 			.then( canceledEvent => {
 				console.log('============EVENT CANCELED===============')
-				result = canceledEvent[0]
-				console.log(result[0])
 				res.send(canceledEvent)
 			})
 		}
@@ -44,16 +41,9 @@ app.post('/webhook', async (req, res) => {
 		}	
 })
 
-// app.listen(PORT, () => {
-// 	console.log(`listening on ${PORT}`)
-// })
-
 // Calendly Fetch
 // =============================================================
 const BearerToken = process.env.CALENDLY_BEARER_TOKEN
-const organizationUri = 'https://api.calendly.com/organizations/CEBBNBYN7S5RBBCM'
-const myUri = 'https://api.calendly.com/users/48e74773-5fa0-42f7-9107-59fa8b3e952f'
-
 
 let calendlyFetchOptions = {
 	method: 'GET',
@@ -61,39 +51,16 @@ let calendlyFetchOptions = {
 	Authorization: `${BearerToken}`}
 };
 
-// let calendlyFetchOptions = {
-// 	method: 'POST',
-// 	headers: {'Content-Type': 'application/json', 
-// 		Authorization: `${BearerToken}`
-// 	},
-// 	body:'{"url":"https://us-central1-vital-range-377419.cloudfunctions.net/calendlyBigQueryETLServer/webhook","events":["invitee.created","invitee.canceled"],"organization":"https://api.calendly.com/organizations/CEBBNBYN7S5RBBCM","user":"https://api.calendly.com/users/48e74773-5fa0-42f7-9107-59fa8b3e952f","scope": "organization"}',
-// };
-
-// const url = `https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}&scope=organization`
-// //`https://api.calendly.com/webhook_subscriptions/422774ac-06a2-483f-8352-45e1338aff96?organization=${organizationUri}`
-// //`https://api.calendly.com/webhook_subscriptions?organization=${organizationUri}`
-
-// fetch(url, calendlyFetchOptions)
-// 	.then(res => res.json())
-// 	.then(json => console.log(json))
-// 	.catch(err => console.error('error:' + err));
-
 const fetchNewEventData = (data) => {
 		return fetch(data.payload.event, calendlyFetchOptions)
 		.then(res => {return res.json()})
 		.then( event => {
-			// console.log('============EVENT===============')
-			// console.log(event)
 			return fetch(event.resource.event_memberships[0].user, calendlyFetchOptions)
 			.then(res => {return res.json()})
 			.then( user => {
-				// console.log('============USER===============')
-				// console.log(user)
 				return fetch(event.resource.event_type, calendlyFetchOptions)
 				.then(res => {return res.json()})
 				.then( eventType => {
-					// console.log('============Event Type===============')
-					// console.log(eventType)
 					const webhookData = data.payload
 					const fullName = webhookData.name.split(' ')
 					webhookData.first_name = fullName[0]
@@ -139,8 +106,6 @@ const fetchNewEventData = (data) => {
 						webhookData.question_4 = ''
 						webhookData.answer_4 = ''
 					}
-					// console.log('============FINAL===============')
-					// console.log(webhookData)
 					return webhookData	
 				})
 			})
@@ -254,12 +219,6 @@ function main(dataForBiqQuery) {
 
         // load() waits for the job to finish
         console.log(`Job ${job[0].kind} completed.`)
-
-        // Check the job's status for errors
-        // const errors = job.status.errors;
-        // if (errors && errors.length > 0) {
-        // throw errors;
-        // }
     }
 	
     loadCalendlyEventData(datasetId, tableId, insertData);
